@@ -1,0 +1,41 @@
+{
+  "name": "Interview Trainer Agent",
+  "description": "AI-powered Interview Trainer Agent using IBM Granite on Watsonx.ai. Generates role-specific interview questions and evaluates user answers in real-time using RAG architecture.",
+  "version": "1.0.0",
+  "author": "Pranav Lakhe",
+  "institute": "Symbiosis Institute of Technology, Nagpur",
+  "internship": {
+    "program": "IBM SkillsBuild x AICTE 2026",
+    "problem_statement": "PS22 - Interview Trainer Agent",
+    "internship_id": "INTERNSHIP_177549002069d3d3e4f3903",
+    "aicte_student_id": "STU6995ccb089af01771424944",
+    "duration": "15 May 2026 - 15 June 2026"
+  },
+  "technology": {
+    "ai_model": "ibm/granite-3-8b-instruct",
+    "platform": "IBM Watsonx.ai",
+    "cloud": "IBM Cloud (us-south)",
+    "sdk": "ibm-watsonx-ai Python SDK",
+    "rag": "Chroma Vector Store + Sentence Transformers",
+    "language": "Python 3.12"
+  },
+  "features": [
+    "Role-specific interview question generation",
+    "Real-time answer evaluation with scoring",
+    "RAG-based knowledge retrieval from interview corpus",
+    "STAR-format model answer suggestions",
+    "Conversation memory for multi-turn sessions",
+    "Support for Technical, Behavioral, and HR questions"
+  ],
+  "usage": {
+    "install": "pip install -r requirements.txt",
+    "run_script": "python interview_trainer.py",
+    "run_notebook": "Open interview_trainer.ipynb in IBM Watsonx Jupyter environment",
+    "environment_variables": {
+      "WATSONX_API_KEY": "Your IBM Cloud API Key",
+      "WATSONX_PROJECT_ID": "Your Watsonx Project ID"
+    }
+  },
+  "github": "https://github.com/Pranavv28/Interview-Trainer-Agent",
+  "license": "MIT"
+}

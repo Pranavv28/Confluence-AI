@@ -1,0 +1,8 @@
+{
+  "name": "AI Interview Trainer Agent",
+  "description": "AI-powered interview trainer agent that conducts role-specific mock interviews, evaluates answers in real-time with scoring and feedback, and leverages RAG knowledge retrieval.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
