@@ -1,0 +1,7 @@
+{
+  "name": "PanelAI - Coordinated AI Interview Panel",
+  "description": "Adaptive, real-time, voice-first interview platform powered by Agora Conversational AI with multiple coordinated interviewer personas.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
