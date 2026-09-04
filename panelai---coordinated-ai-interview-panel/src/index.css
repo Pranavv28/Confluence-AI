@@ -2,18 +2,17 @@
 
 @layer base {
   body {
-    background-color: #0D0D0D;
-    color: #E5E5E5;
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: #FAFAF9;
+    color: #1C1917;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
-  h1, h2, h3, .font-display {
-    font-family: 'Syne', 'Plus Jakarta Sans', sans-serif;
-    letter-spacing: -0.03em;
-  }
-
-  .font-editorial {
-    font-family: 'Cormorant Garamond', serif;
+  h1, h2, h3, h4, .font-display {
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+    letter-spacing: -0.02em;
+    color: #1C1917;
   }
 
   .font-mono {
@@ -21,19 +20,19 @@
   }
 }
 
-/* Custom Artistic Flair Scrollbar */
+/* Subtle, clean scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0D0D0D;
+  background: #F5F5F4;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: #D6D3D1;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #FF4D00;
+  background: #A8A29E;
 }
 

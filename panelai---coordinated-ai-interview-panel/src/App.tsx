@@ -49,7 +49,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0D0D0D] text-[#E5E5E5] selection:bg-[#FF4D00] selection:text-white font-sans antialiased">
+    <div className="min-h-screen bg-[#FAFAF9] text-stone-900 selection:bg-[#1E3A5F] selection:text-white font-sans antialiased">
       {/* Universal Top Navigation */}
       <Navbar
         currentView={currentView}

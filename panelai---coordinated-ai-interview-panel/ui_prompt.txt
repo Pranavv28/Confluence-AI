@@ -1,0 +1,18 @@
+Redesign the visual style of PanelAI's frontend (React 19 + Tailwind CSS 4) to feel like a calm, professional interview-prep tool a real candidate would trust — not a flashy AI demo.
+
+Goals:
+
+Light theme as default: soft off-white/warm-gray background (
+#FAFAF9–
+#F5F5F4 range), not pure white or dark glassmorphism. Reserve dark surfaces for small accents only (e.g. the active-speaker indicator).
+Replace any neon gradients, glowing borders, heavy drop-shadows, or "AI-purple/cyan glow" motifs with a restrained palette: one primary brand color (muted blue or slate), one accent (warm amber or green for positive states), neutral grays for everything else.
+Typography: a humanist sans-serif (Inter, IBM Plex Sans, or similar) instead of anything geometric/futuristic. Clear hierarchy — larger, calmer headings, generous line-height on body text and transcripts.
+Reduce motion: keep Motion/animation for meaningful state changes only (interviewer switching, new message arriving). Remove decorative pulsing/particle effects, especially on VoiceOrb.tsx — replace with a simple, subtle waveform or breathing-dot indicator instead of a glowing 3D orb.
+InterviewerPanel.tsx: present personas like a real hiring panel roster — headshot-style avatar placeholder, name, role, small "speaking / listening / idle" status text — not a sci-fi HUD.
+LiveTranscript.tsx: style like a clean chat/transcript log (think a well-designed messaging app or interview notes doc), clear speaker labels, comfortable padding, no chat-bubble neon outlines.
+EvidenceGraphCard.tsx and RadarChart.tsx: keep data-dense but readable — muted chart colors, clear axis labels, avoid glow/gradient fills on the radar chart itself.
+AssessmentReportView.tsx: should read like a professional PDF-style hiring report — clear sections, generous whitespace, printable feel.
+Buttons/CTAs: solid, low-saturation primary color with clear hover states; avoid gradient buttons.
+Overall test: if a candidate is nervous before a real interview, does this feel reassuring and credible, or does it feel like a hackathon AI toy? Optimize for the former.
+
+Keep all existing functionality and component structure intact — this is a styling/Tailwind-class and small-markup pass, not a rewrite. Apply consistently across LandingView, InterviewSetupView, LiveInterviewView, AssessmentReportView, JobManagementView, CandidateDashboardView, and AdminDashboardView.

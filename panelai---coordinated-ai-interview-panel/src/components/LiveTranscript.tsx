@@ -25,27 +25,27 @@ export const LiveTranscript: React.FC<LiveTranscriptProps> = ({
   }, [turns, partialCandidateText]);
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-zinc-800 bg-zinc-950/70 backdrop-blur-sm overflow-hidden">
+    <div className="flex h-full flex-col rounded-2xl border border-stone-200 bg-white shadow-xs overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800/80 px-4 py-3 bg-zinc-900/40">
+      <div className="flex items-center justify-between border-b border-stone-200 px-4 py-3 bg-stone-50/80">
         <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
-            Live Synchronized Transcript
+          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-stone-700">
+            Interview Transcript
           </h3>
         </div>
-        <div className="flex items-center gap-2 text-[11px] text-zinc-400 font-mono">
-          <Clock className="h-3 w-3" />
-          <span>Real-Time Voice Stream</span>
+        <div className="flex items-center gap-1.5 text-[11px] text-stone-500 font-mono">
+          <Clock className="h-3 w-3 text-stone-400" />
+          <span>Real-time Log</span>
         </div>
       </div>
 
       {/* Transcript Messages Container */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[380px] sm:max-h-[460px]">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3.5 max-h-[380px] sm:max-h-[480px]">
         {turns.length === 0 && (
-          <div className="flex h-40 flex-col items-center justify-center text-center text-zinc-400">
-            <p className="text-sm font-medium">Session initialized.</p>
-            <p className="text-xs text-zinc-400 mt-1">Interviewer audio will stream here as the conversation unfolds.</p>
+          <div className="flex h-40 flex-col items-center justify-center text-center text-stone-400">
+            <p className="text-sm font-medium text-stone-600">Session initialized.</p>
+            <p className="text-xs text-stone-400 mt-1">Interviewer questions and candidate responses appear here.</p>
           </div>
         )}
 
@@ -57,44 +57,39 @@ export const LiveTranscript: React.FC<LiveTranscriptProps> = ({
           return (
             <div
               key={turn.id}
-              className={`flex flex-col gap-1.5 transition-all p-3 rounded-xl border ${
+              className={`flex flex-col gap-1.5 transition-all p-3.5 rounded-xl border ${
                 isHighlighted
-                  ? "bg-blue-500/10 border-blue-500/40 ring-1 ring-blue-500/30"
+                  ? "bg-blue-50/70 border-blue-300 ring-1 ring-blue-300/40"
                   : isCandidate
-                  ? "bg-zinc-900/60 border-zinc-800/80 ml-4 sm:ml-8"
-                  : "bg-zinc-900/30 border-zinc-800/40 mr-4 sm:mr-8"
+                  ? "bg-stone-50 border-stone-200 ml-4 sm:ml-8"
+                  : "bg-white border-stone-200 shadow-2xs mr-4 sm:mr-8"
               }`}
             >
               {/* Speaker Metadata Header */}
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   {isCandidate ? (
-                    <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      <User className="h-3.5 w-3.5" />
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-stone-200 text-stone-700">
+                      <User className="h-3 w-3" />
                     </div>
                   ) : (
-                    <div
-                      className="flex h-6 w-6 items-center justify-center rounded-md border text-xs font-semibold"
-                      style={{
-                        backgroundColor: `${persona?.accentColor || "#3B82F6"}20`,
-                        borderColor: `${persona?.accentColor || "#3B82F6"}40`,
-                        color: persona?.accentColor || "#93C5FD",
-                      }}
-                    >
-                      {persona?.name.charAt(0) || "AI"}
-                    </div>
+                    <img
+                      src={persona?.avatar}
+                      alt={persona?.name || "Interviewer"}
+                      className="h-5 w-5 rounded-full object-cover border border-stone-200"
+                    />
                   )}
 
-                  <span className="text-xs font-semibold text-zinc-200">
+                  <span className="text-xs font-semibold text-stone-900">
                     {isCandidate ? "You (Candidate)" : persona ? `${persona.name} (${persona.title})` : "Interviewer"}
                   </span>
                 </div>
 
-                <span className="text-[10px] font-mono text-zinc-400">{turn.timestamp}</span>
+                <span className="text-[10px] font-mono text-stone-400">{turn.timestamp}</span>
               </div>
 
               {/* Text content */}
-              <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed pl-8">
+              <p className="text-xs sm:text-sm text-stone-700 leading-relaxed pl-7">
                 {turn.text}
               </p>
             </div>
@@ -103,14 +98,14 @@ export const LiveTranscript: React.FC<LiveTranscriptProps> = ({
 
         {/* Live Partial Speech from candidate if speaking right now */}
         {partialCandidateText && (
-          <div className="flex flex-col gap-1.5 p-3 rounded-xl border border-emerald-500/30 bg-emerald-950/20 ml-4 sm:ml-8 animate-pulse">
+          <div className="flex flex-col gap-1.5 p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/60 ml-4 sm:ml-8">
             <div className="flex items-center gap-2">
-              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-500/20 text-emerald-400">
-                <User className="h-3.5 w-3.5" />
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-200 text-emerald-800">
+                <User className="h-3 w-3" />
               </div>
-              <span className="text-xs font-semibold text-emerald-400">You (Speaking...)</span>
+              <span className="text-xs font-semibold text-emerald-800">You (Speaking...)</span>
             </div>
-            <p className="text-xs sm:text-sm text-emerald-200/90 leading-relaxed pl-8 italic">
+            <p className="text-xs sm:text-sm text-emerald-900 leading-relaxed pl-7 italic">
               {partialCandidateText}
             </p>
           </div>
@@ -120,20 +115,20 @@ export const LiveTranscript: React.FC<LiveTranscriptProps> = ({
       </div>
 
       {/* Footer Status */}
-      <div className="border-t border-zinc-800/80 bg-zinc-950 px-4 py-2 flex items-center justify-between text-[11px] text-zinc-400">
-        <span>{turns.length} conversational turns recorded</span>
+      <div className="border-t border-stone-200 bg-stone-50 px-4 py-2 flex items-center justify-between text-[11px] text-stone-500">
+        <span>{turns.length} turns recorded</span>
         {isAgentSpeaking ? (
-          <span className="flex items-center gap-1.5 text-blue-400">
-            <Volume2 className="h-3.5 w-3.5 animate-pulse" />
+          <span className="flex items-center gap-1.5 text-blue-700 font-medium">
+            <Volume2 className="h-3.5 w-3.5 text-blue-600" />
             Interviewer speaking
           </span>
         ) : isCandidateSpeaking ? (
-          <span className="flex items-center gap-1.5 text-emerald-400">
-            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+          <span className="flex items-center gap-1.5 text-emerald-700 font-medium">
+            <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
             Listening to your microphone
           </span>
         ) : (
-          <span>Candidate turn to respond</span>
+          <span className="text-stone-500">Ready for response</span>
         )}
       </div>
     </div>

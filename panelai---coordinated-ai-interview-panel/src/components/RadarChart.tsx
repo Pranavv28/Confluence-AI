@@ -11,7 +11,7 @@ interface RadarChartProps {
 
 export const RadarChart: React.FC<RadarChartProps> = ({ data, size = 320 }) => {
   const center = size / 2;
-  const radius = (size - 80) / 2;
+  const radius = (size - 90) / 2;
   const total = data.length;
 
   // Convert polar coordinates to Cartesian
@@ -26,13 +26,12 @@ export const RadarChart: React.FC<RadarChartProps> = ({ data, size = 320 }) => {
   // Generate web background polygons (20%, 40%, 60%, 80%, 100%)
   const levels = [20, 40, 60, 80, 100];
   const levelPolygons = levels.map((level) => {
-    const points = data
+    return data
       .map((_, i) => {
         const { x, y } = getCoordinates(i, level);
         return `${x},${y}`;
       })
       .join(" ");
-    return points;
   });
 
   // Candidate polygon points
@@ -60,7 +59,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({ data, size = 320 }) => {
             key={idx}
             points={points}
             fill="none"
-            stroke="#27272A"
+            stroke="#E7E5E4"
             strokeWidth="1"
             strokeDasharray={idx === levels.length - 1 ? "" : "2,2"}
           />
@@ -76,7 +75,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({ data, size = 320 }) => {
               y1={center}
               x2={x}
               y2={y}
-              stroke="#27272A"
+              stroke="#E7E5E4"
               strokeWidth="1"
             />
           );
@@ -85,8 +84,8 @@ export const RadarChart: React.FC<RadarChartProps> = ({ data, size = 320 }) => {
         {/* Benchmark Shape */}
         <polygon
           points={benchmarkPoints}
-          fill="rgba(148, 163, 184, 0.1)"
-          stroke="#64748B"
+          fill="rgba(168, 162, 158, 0.08)"
+          stroke="#A8A29E"
           strokeWidth="1.5"
           strokeDasharray="4,4"
         />
@@ -94,34 +93,34 @@ export const RadarChart: React.FC<RadarChartProps> = ({ data, size = 320 }) => {
         {/* Candidate Score Shape */}
         <polygon
           points={candidatePoints}
-          fill="rgba(59, 130, 246, 0.25)"
-          stroke="#3B82F6"
-          strokeWidth="2.5"
+          fill="rgba(30, 58, 138, 0.12)"
+          stroke="#1E3A8A"
+          strokeWidth="2"
         />
 
         {/* Vertex Points & Labels */}
         {data.map((item, i) => {
           const { x, y } = getCoordinates(i, item.score);
-          const labelCoord = getCoordinates(i, 118);
+          const labelCoord = getCoordinates(i, 122);
 
           return (
             <g key={i}>
-              <circle cx={x} cy={y} r="4" fill="#60A5FA" stroke="#1E3A8A" strokeWidth="2" />
+              <circle cx={x} cy={y} r="3.5" fill="#1E3A8A" stroke="#FFFFFF" strokeWidth="1.5" />
               <text
                 x={labelCoord.x}
-                y={labelCoord.y}
+                y={labelCoord.y - 4}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                className="text-[10px] font-semibold fill-zinc-400"
+                className="text-[11px] font-medium fill-stone-700"
               >
                 {item.name}
               </text>
               <text
                 x={labelCoord.x}
-                y={labelCoord.y + 12}
+                y={labelCoord.y + 10}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                className="text-[10px] font-mono font-bold fill-blue-400"
+                className="text-[10px] font-semibold fill-blue-900"
               >
                 {item.score}%
               </text>
@@ -131,13 +130,13 @@ export const RadarChart: React.FC<RadarChartProps> = ({ data, size = 320 }) => {
       </svg>
 
       {/* Legend */}
-      <div className="mt-4 flex items-center justify-center gap-6 text-xs text-zinc-400">
+      <div className="mt-4 flex items-center justify-center gap-6 text-xs text-stone-600">
         <div className="flex items-center gap-2">
-          <span className="h-3 w-3 rounded-sm bg-blue-500/40 border border-blue-500" />
+          <span className="h-3 w-3 rounded-sm bg-blue-900/20 border border-blue-900" />
           <span>Candidate Score</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="h-0.5 w-4 bg-zinc-400 border-dashed border-b border-zinc-400" />
+          <span className="h-0.5 w-4 bg-stone-400 border-dashed border-b border-stone-400" />
           <span>Role Benchmark (75%)</span>
         </div>
       </div>

@@ -6,6 +6,20 @@ import AgoraRTC, {
 import { InterviewerRole } from "../../types/interview";
 import { INTERVIEWER_PERSONAS } from "../personas";
 
+/**
+ * Audio Engine Tuning Constants
+ */
+export const AUDIO_CONFIG = {
+  // Grace period before mic volume or recognition can trigger candidate interruption (avoids speaker echo)
+  speechGracePeriodMs: 2000,
+  // Sustained volume threshold on normalized 0-100 scale for interrupting agent
+  volumeInterruptionThreshold: 60,
+  // Number of consecutive 100ms frames above threshold required for voice interruption
+  volumeInterruptionStreak: 4,
+  // Hard stall watchdog timeout: if browser speech stalls without events, auto-resolve
+  stallWatchdogTimeoutMs: 14000,
+};
+
 export interface AgoraClientCallbacks {
   onCandidateSpeaking?: (volume: number) => void;
   onAgentSpeaking?: (volume: number) => void;
@@ -23,6 +37,11 @@ export class AgoraInterviewClient {
   private recognition: any = null;
   private isListening = false;
   private isAgentSpeaking = false;
+  private agentSpeakingStartTime = 0;
+  private highVolumeStreak = 0;
+  private currentUtterance: SpeechSynthesisUtterance | null = null;
+  private speechKeepAliveTimer: any = null;
+  private speechWatchdogTimer: any = null;
   private isMuted = false;
   private callbacks: AgoraClientCallbacks = {};
   private activePersonaRole: InterviewerRole = "technical";
@@ -73,13 +92,17 @@ export class AgoraInterviewClient {
             }
           }
 
-          if (interimTranscript && this.callbacks.onTranscriptPartial) {
-            this.callbacks.onTranscriptPartial(interimTranscript);
-
-            // If candidate starts speaking while agent is talking -> Trigger interruption!
-            if (this.isAgentSpeaking) {
+          // If agent is speaking, ignore transcripts during the first 2 seconds to avoid speaker echo
+          const now = Date.now();
+          if (this.isAgentSpeaking) {
+            if (now - this.agentSpeakingStartTime > 2000 && interimTranscript.trim().length > 15) {
               this.handleCandidateInterruption();
             }
+            return;
+          }
+
+          if (interimTranscript && this.callbacks.onTranscriptPartial) {
+            this.callbacks.onTranscriptPartial(interimTranscript);
           }
 
           if (finalTranscript && this.callbacks.onTranscriptFinal) {
@@ -167,9 +190,6 @@ export class AgoraInterviewClient {
           volumes.forEach((vol) => {
             if (vol.uid === uid) {
               this.callbacks.onCandidateSpeaking?.(vol.level);
-              if (vol.level > 15 && this.isAgentSpeaking) {
-                this.handleCandidateInterruption();
-              }
             } else {
               this.callbacks.onAgentSpeaking?.(vol.level);
             }
@@ -211,6 +231,7 @@ export class AgoraInterviewClient {
       this.volumeCheckInterval = setInterval(() => {
         if (!this.micAnalyser || this.isMuted) {
           this.callbacks.onCandidateSpeaking?.(0);
+          this.highVolumeStreak = 0;
           return;
         }
 
@@ -224,9 +245,21 @@ export class AgoraInterviewClient {
 
         this.callbacks.onCandidateSpeaking?.(normalized);
 
-        // Interruption threshold check
-        if (normalized > 25 && this.isAgentSpeaking) {
-          this.handleCandidateInterruption();
+        // Robust Interruption check:
+        // Must be sustained high volume (candidate actively speaking loudly) after grace period
+        if (this.isAgentSpeaking) {
+          const elapsed = Date.now() - this.agentSpeakingStartTime;
+          if (elapsed > AUDIO_CONFIG.speechGracePeriodMs && normalized > AUDIO_CONFIG.volumeInterruptionThreshold) {
+            this.highVolumeStreak += 1;
+            if (this.highVolumeStreak >= AUDIO_CONFIG.volumeInterruptionStreak) {
+              this.handleCandidateInterruption();
+              this.highVolumeStreak = 0;
+            }
+          } else {
+            this.highVolumeStreak = Math.max(0, this.highVolumeStreak - 1);
+          }
+        } else {
+          this.highVolumeStreak = 0;
         }
       }, 100);
     } catch (e) {
@@ -283,30 +316,44 @@ export class AgoraInterviewClient {
       }
 
       // Stop any ongoing speech
-      window.speechSynthesis.cancel();
+      this.stopSpeaking();
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = persona.voice.rate || 1.0;
       utterance.pitch = persona.voice.pitch || 1.0;
+
+      // Retain utterance reference to prevent Chromium garbage collection from abruptly cutting off voice
+      this.currentUtterance = utterance;
+      (window as any).__currentUtterance = utterance;
 
       // Select matching voice
       const voices = window.speechSynthesis.getVoices();
       if (voices.length > 0) {
         if (persona.voice.gender === "female") {
           const femaleVoice =
-            voices.find((v) => v.name.includes("Samantha") || v.name.includes("Victoria") || v.name.includes("Google UK English Female") || v.name.includes("Zira")) ||
+            voices.find((v) => v.name.includes("Samantha") || v.name.includes("Victoria") || v.name.includes("Google UK English Female") || v.name.includes("Zira") || v.name.includes("Jenny")) ||
             voices.find((v) => v.name.toLowerCase().includes("female"));
           if (femaleVoice) utterance.voice = femaleVoice;
         } else {
           const maleVoice =
-            voices.find((v) => v.name.includes("Alex") || v.name.includes("Daniel") || v.name.includes("Google US English") || v.name.includes("David")) ||
+            voices.find((v) => v.name.includes("Alex") || v.name.includes("Daniel") || v.name.includes("Google US English") || v.name.includes("David") || v.name.includes("Guy")) ||
             voices.find((v) => v.name.toLowerCase().includes("male"));
           if (maleVoice) utterance.voice = maleVoice;
         }
       }
 
       this.isAgentSpeaking = true;
+      this.agentSpeakingStartTime = Date.now();
       this.callbacks.onAgentSpeaking?.(75);
+
+      // Chromium keep-alive interval
+      if (this.speechKeepAliveTimer) clearInterval(this.speechKeepAliveTimer);
+      this.speechKeepAliveTimer = setInterval(() => {
+        if (this.isAgentSpeaking && window.speechSynthesis.speaking) {
+          window.speechSynthesis.pause();
+          window.speechSynthesis.resume();
+        }
+      }, 10000);
 
       // Simulate subtle voice wave fluctuation
       const waveInterval = setInterval(() => {
@@ -316,17 +363,42 @@ export class AgoraInterviewClient {
         }
       }, 150);
 
-      utterance.onend = () => {
+      let resolved = false;
+      const cleanup = () => {
+        if (resolved) return;
+        resolved = true;
         clearInterval(waveInterval);
+        if (this.speechKeepAliveTimer) {
+          clearInterval(this.speechKeepAliveTimer);
+          this.speechKeepAliveTimer = null;
+        }
+        if (this.speechWatchdogTimer) {
+          clearTimeout(this.speechWatchdogTimer);
+          this.speechWatchdogTimer = null;
+        }
         this.isAgentSpeaking = false;
+        this.currentUtterance = null;
+        (window as any).__currentUtterance = null;
         this.callbacks.onAgentSpeaking?.(0);
+      };
+
+      // Watchdog timer: If browser SpeechSynthesis hangs, gracefully release
+      this.speechWatchdogTimer = setTimeout(() => {
+        if (this.isAgentSpeaking) {
+          console.warn("[AgoraClient] SpeechSynthesis watchdog timer fired. Releasing voice lock.");
+          cleanup();
+          resolve();
+        }
+      }, Math.max(AUDIO_CONFIG.stallWatchdogTimeoutMs, text.length * 90));
+
+      utterance.onend = () => {
+        cleanup();
         resolve();
       };
 
-      utterance.onerror = () => {
-        clearInterval(waveInterval);
-        this.isAgentSpeaking = false;
-        this.callbacks.onAgentSpeaking?.(0);
+      utterance.onerror = (e) => {
+        // 'canceled' or 'interrupted' is expected when user interrupts
+        cleanup();
         resolve();
       };
 
@@ -339,20 +411,30 @@ export class AgoraInterviewClient {
    */
   public handleCandidateInterruption() {
     if (this.isAgentSpeaking) {
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
-      this.isAgentSpeaking = false;
-      this.callbacks.onAgentSpeaking?.(0);
+      this.stopSpeaking();
       this.callbacks.onInterruption?.();
     }
   }
 
   public stopSpeaking() {
+    if (this.speechWatchdogTimer) {
+      clearTimeout(this.speechWatchdogTimer);
+      this.speechWatchdogTimer = null;
+    }
+    if (this.speechKeepAliveTimer) {
+      clearInterval(this.speechKeepAliveTimer);
+      this.speechKeepAliveTimer = null;
+    }
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // ignore
+      }
     }
     this.isAgentSpeaking = false;
+    this.currentUtterance = null;
+    (window as any).__currentUtterance = null;
     this.callbacks.onAgentSpeaking?.(0);
   }
 

@@ -15,7 +15,9 @@ export default defineConfig(() => {
     server: {
       allowedHosts: true as const,
       hmr: process.env.DISABLE_HMR !== 'true',
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      watch: process.env.DISABLE_HMR === 'true' ? null : {
+        ignored: ['**/*.md', '**/.git/**', '**/dist/**'],
+      },
     },
   };
 });

@@ -78,7 +78,7 @@ ${previousEvidence.map((e) => `[${e.competency}] ${e.claim} (Score: ${e.score}, 
 `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
+        model: "gemini-2.5-flash",
         contents: promptContext,
         config: {
           systemInstruction: MODERATOR_SYSTEM_PROMPT,
@@ -173,6 +173,13 @@ function analyzeAnswerDeterministically(params: {
   const { answer, answerLower, currentInterviewer, turnIndex, transcriptHistory, currentDifficulty, candidateProfile } =
     params;
 
+  // Track all questions already asked in this session so we NEVER repeat
+  const askedQuestions = new Set(
+    transcriptHistory
+      .filter((t) => t.speaker === "interviewer")
+      .map((t) => t.text.trim())
+  );
+
   // 1. Detect Vague Answers
   const vaguePhrases = [
     "made it faster",
@@ -186,7 +193,7 @@ function analyzeAnswerDeterministically(params: {
     "fixed the bugs",
   ];
   const containsVaguePhrase = vaguePhrases.some((vp) => answerLower.includes(vp));
-  const hasNumbersOrMetrics = /\b\d+(\.\d+)?%?|\b(ms|seconds|throughput|latency|qps|rps|kafka|redis|postgres)\b/i.test(
+  const hasNumbersOrMetrics = /\b\d+(\.\d+)?%?|\b(ms|seconds|throughput|latency|qps|rps|kafka|redis|postgres|grpc)\b/i.test(
     answer
   );
 
@@ -220,9 +227,10 @@ function analyzeAnswerDeterministically(params: {
     );
   }
 
-  // 3. Adaptive Coordinated Interviewer Switching Logic (The Hackathon Showcase!)
-  // SCENARIO A: Contradiction detected -> Route to Devon (Behavioral) or Marcus (Technical) to clarify gracefully
-  if (contradictions.length > 0) {
+  // SCENARIO A: Contradiction detected -> Route to Devon (Behavioral) to clarify gracefully
+  const contradictionQuestion =
+    "I'd love to clarify something from our earlier discussion. You mentioned owning the overall architecture, but a moment ago described focusing on one specific service. Could you walk me through your specific level of direct ownership versus what the broader team delivered?";
+  if (contradictions.length > 0 && !askedQuestions.has(contradictionQuestion)) {
     return {
       summary: "Contradiction detected in ownership scope.",
       claims: ["Candidate described scoped contribution after previously asserting total architectural ownership"],
@@ -235,16 +243,20 @@ function analyzeAnswerDeterministically(params: {
       recommended_interviewer: "behavioral",
       recommended_action: "challenge",
       difficulty_delta: 0,
-      nextQuestion:
-        "I'd love to clarify something from our earlier discussion. You mentioned owning the overall architecture, but a moment ago described focusing on one specific service. Could you walk me through your specific level of direct ownership versus what the broader team delivered?",
+      nextQuestion: contradictionQuestion,
       transitionStatement: "Devon stepping in to explore project scope.",
       reasoningCategory: "Contradiction in claimed ownership vs execution scope",
     };
   }
 
-  // SCENARIO B: Vague answer -> Probe for specifics with current interviewer or Hiring Manager
+  // SCENARIO B: Vague answer -> Probe for specifics
+  const vagueTechQuestion =
+    "What specific baseline metric were you tracking, and what profiling tools or architectural changes gave you the measured improvement?";
+  const vagueProdQuestion =
+    "How did you actually measure that success—did you have a defined KPI or user feedback loop to validate the impact?";
+
   if (vagueness > 0.6) {
-    if (currentInterviewer === "technical") {
+    if (currentInterviewer === "technical" && !askedQuestions.has(vagueTechQuestion)) {
       return {
         summary: "Answer lacked measurable benchmarks and implementation specifics.",
         claims: ["Claimed general optimization without metrics"],
@@ -257,11 +269,10 @@ function analyzeAnswerDeterministically(params: {
         recommended_interviewer: "technical",
         recommended_action: "clarify",
         difficulty_delta: 0,
-        nextQuestion:
-          "What specific baseline metric were you tracking, and what profiling tools or architectural changes gave you the measured improvement?",
+        nextQuestion: vagueTechQuestion,
         reasoningCategory: "Vague technical claim requires concrete metrics",
       };
-    } else {
+    } else if (currentInterviewer === "product" && !askedQuestions.has(vagueProdQuestion)) {
       return {
         summary: "Vague qualitative claim regarding outcomes.",
         claims: ["General assertion of success"],
@@ -274,131 +285,167 @@ function analyzeAnswerDeterministically(params: {
         recommended_interviewer: "product",
         recommended_action: "clarify",
         difficulty_delta: 0,
-        nextQuestion:
-          "How did you actually measure that success—did you have a defined KPI or user feedback loop to validate the impact?",
+        nextQuestion: vagueProdQuestion,
         reasoningCategory: "Qualitative assertion requires concrete KPI measurement",
       };
     }
   }
 
-  // SCENARIO C: The Core Hackathon Demo Flow!
-  // Candidate gives a strong technical explanation with caching/latency/architecture
-  // BUT lacks customer impact or business justification!
-  const hasTechnicalDepth =
-    answerLower.includes("cache") ||
-    answerLower.includes("latency") ||
-    answerLower.includes("redis") ||
-    answerLower.includes("kafka") ||
-    answerLower.includes("database") ||
-    answerLower.includes("p99") ||
-    answerLower.includes("throughput") ||
-    answerLower.includes("index") ||
-    answerLower.includes("concurrency");
+  // Personas Question Pools (Ordered sequentially for rich progression)
+  const questionBank: Record<InterviewerRole, string[]> = {
+    technical: [
+      `Welcome ${candidateProfile.name}. I'm Dr. Marcus Vance, leading technical evaluation today alongside our product and engineering panel. To get started, could you walk me through a distributed architecture or system you've designed that had complex scalability constraints?`,
+      "That's a sound architectural starting point. How would your cache invalidation strategy behave if the primary database experienced a sudden burst of write contention and replica lag?",
+      "When scaling stateful microservices or handling distributed consensus, how did you prevent race conditions and handle partial network partition failures?",
+      "If you had to debug an intermittent 500ms latency spike occurring only at the 99.9th percentile under high QPS, what telemetry and profiling pipeline would you construct?",
+    ],
+    product: [
+      `You explained the technical architecture cleanly, ${candidateProfile.name}. From a product perspective, how did that technical improvement actually translate into customer experience, retention, or business metrics?`,
+      "When product stakeholders push for rapid feature delivery while engineering identifies critical technical debt, what framework do you use to evaluate and communicate trade-offs?",
+      "How do you establish feedback loops with end-users and product analytics to ensure new technical capabilities solve the right user problems?",
+    ],
+    behavioral: [
+      "Balancing aggressive product timelines with architectural quality often creates team friction. Could you share a scenario where your engineering perspective clashed with a product or design priority, and how you worked through it?",
+      "Tell me about a high-severity production incident you were personally involved with. How did you coordinate the response across teams and lead the post-mortem without assigning blame?",
+      "How do you approach mentoring junior and mid-level engineers while maintaining your own velocity on critical path deliverables?",
+    ],
+    hiring_manager: [
+      `${candidateProfile.name}, stepping back to the 30,000-foot view: as systems scale, complexity naturally creeps in. How do you ensure your engineering teams maintain high velocity and high leverage without burning out under technical debt?`,
+      "When making build-versus-buy decisions for foundational infrastructure, what criteria do you use to determine whether to build in-house or adopt managed cloud platforms?",
+      "What kind of team culture and organizational structure enables you to do your highest impact work, and where do you want to grow over the next few years?",
+    ],
+    customer: [
+      "Simulating an enterprise escalation: If a major client experienced a 20-minute outage due to a deployment glitch, how would you explain the root cause in non-technical terms and rebuild their confidence in our SLA commitments?",
+    ],
+  };
 
-  const lacksCustomerImpact =
-    !answerLower.includes("customer") &&
-    !answerLower.includes("user") &&
-    !answerLower.includes("revenue") &&
-    !answerLower.includes("conversion") &&
-    !answerLower.includes("churn") &&
-    !answerLower.includes("retention") &&
-    !answerLower.includes("client");
+  // Count turns per persona
+  const personaTurnCounts: Record<InterviewerRole, number> = {
+    technical: 0,
+    product: 0,
+    behavioral: 0,
+    hiring_manager: 0,
+    customer: 0,
+  };
 
-  if (currentInterviewer === "technical" && hasTechnicalDepth && lacksCustomerImpact && turnIndex >= 2) {
-    return {
-      summary: "Technical mechanism is well-articulated, but candidate omitted customer and business impact.",
-      claims: ["Successfully articulated caching and latency optimization techniques"],
-      evidence: [answer.slice(0, 150)],
-      missing_evidence: ["Customer experience impact", "Business KPI or conversion attribution"],
-      confidence: 0.94,
-      vagueness: 0.18,
-      contradictions: [],
-      competencies: { technical: 90, product: 55, communication: 82 },
-      recommended_interviewer: "product",
-      recommended_action: "switch_interviewer",
-      difficulty_delta: 0,
-      nextQuestion:
-        "You explained the latency reduction very cleanly, Alex. From a product perspective, how did that technical improvement actually translate into customer experience, retention, or business metrics?",
-      transitionStatement: "Elena Rostova (Product Strategy) is taking over the next question.",
-      reasoningCategory: "Customer & business impact not sufficiently covered in technical answer",
-    };
+  transcriptHistory.forEach((t) => {
+    if (t.speaker === "interviewer" && t.role) {
+      personaTurnCounts[t.role as InterviewerRole] = (personaTurnCounts[t.role as InterviewerRole] || 0) + 1;
+    }
+  });
+
+  const totalInterviewerQuestions = Object.values(personaTurnCounts).reduce((a, b) => a + b, 0);
+
+  // SCENARIO CONCLUSION: If candidate has answered questions across all 4 key stages (or 8+ turns total)
+  if (
+    totalInterviewerQuestions >= 7 ||
+    (personaTurnCounts.technical >= 1 &&
+      personaTurnCounts.product >= 1 &&
+      personaTurnCounts.behavioral >= 1 &&
+      personaTurnCounts.hiring_manager >= 1 &&
+      currentInterviewer === "hiring_manager")
+  ) {
+    const concludeQuestion = `Thank you for the thorough walkthrough, ${candidateProfile.name}. Our panel has gathered comprehensive signal across systems architecture, product alignment, operations, and leadership. We're ready to compile your final assessment report. Feel free to ask any closing questions or proceed to review your evaluation.`;
+    if (!askedQuestions.has(concludeQuestion)) {
+      return {
+        summary: "All core competencies comprehensively evaluated across all interview panel personas.",
+        claims: ["Demonstrated competencies across technical, product, behavioral, and executive domains"],
+        evidence: [answer.slice(0, 140)],
+        missing_evidence: [],
+        confidence: 0.96,
+        vagueness: 0.12,
+        contradictions: [],
+        competencies: { technical: 92, product: 86, behavioral: 88, leadership: 87 },
+        recommended_interviewer: "hiring_manager",
+        recommended_action: "conclude",
+        difficulty_delta: 0,
+        nextQuestion: concludeQuestion,
+        transitionStatement: "Interview panel concluded. Final assessment ready for generation.",
+        reasoningCategory: "Comprehensive panel evaluation complete",
+      };
+    }
   }
 
-  // SCENARIO D: Product interview concluded -> Shift to Devon (Behavioral) for team collaboration & conflict
-  if (currentInterviewer === "product" && turnIndex >= 4) {
-    return {
-      summary: "Product dimensions covered. Transitioning to team leadership and conflict resolution.",
-      claims: ["Addressed customer metrics and prioritization"],
-      evidence: [answer.slice(0, 140)],
-      missing_evidence: ["Collaboration challenges during delivery"],
-      confidence: 0.89,
-      vagueness: 0.2,
-      contradictions: [],
-      competencies: { product: 84, communication: 85 },
-      recommended_interviewer: "behavioral",
-      recommended_action: "switch_interviewer",
-      difficulty_delta: 0,
-      nextQuestion:
-        "Balancing aggressive product timelines with architectural quality often creates team friction. Could you share a scenario where your engineering perspective clashed with a product or design priority, and how you worked through it?",
-      transitionStatement: "Devon Clark (Engineering Operations) is joining the discussion.",
-      reasoningCategory: "Evaluating interpersonal conflict resolution and team ownership",
-    };
-  }
+  // Determine Next Persona in standard panel flow:
+  // Technical (turns 1-2) -> Product (turns 3-4) -> Behavioral (turns 5-6) -> Hiring Manager (turns 7-8)
+  let targetRole: InterviewerRole = currentInterviewer;
 
-  // SCENARIO E: High depth candidate -> Challenge with simulated Customer or Hiring Manager
-  if (turnIndex >= 6) {
-    return {
-      summary: "Core technical, product, and behavioral baselines established. Escalating to executive role fit.",
-      claims: ["Sustained high competency across multiple vectors"],
-      evidence: [answer.slice(0, 120)],
-      missing_evidence: ["Long-term engineering leverage"],
-      confidence: 0.92,
-      vagueness: 0.15,
-      contradictions: [],
-      competencies: { technical: 88, product: 82, leadership: 85 },
-      recommended_interviewer: "hiring_manager",
-      recommended_action: "switch_interviewer",
-      difficulty_delta: 1,
-      nextQuestion:
-        "Alex, stepping back to the 30,000-foot view: as systems scale, complexity naturally creeps in. How do you ensure your engineering teams maintain high velocity and high leverage without burning out under technical debt?",
-      transitionStatement: "Sarah Jenkins (VP of Engineering) entering to assess executive leverage.",
-      reasoningCategory: "Evaluating high-level technical leadership and organizational leverage",
-    };
-  }
-
-  // DEFAULT FOLLOW-UP: Keep current interviewer drilling down with tailored depth
   if (currentInterviewer === "technical") {
+    if (personaTurnCounts.technical >= 2 || (answerLower.includes("cache") || answerLower.includes("latency") || answerLower.includes("database"))) {
+      targetRole = "product";
+    }
+  } else if (currentInterviewer === "product") {
+    if (personaTurnCounts.product >= 1) {
+      targetRole = "behavioral";
+    }
+  } else if (currentInterviewer === "behavioral") {
+    if (personaTurnCounts.behavioral >= 1) {
+      targetRole = "hiring_manager";
+    }
+  } else if (currentInterviewer === "hiring_manager") {
+    if (personaTurnCounts.hiring_manager >= 1) {
+      targetRole = "hiring_manager";
+    }
+  }
+
+  // Find the first unasked question for the target role
+  let selectedQuestion = questionBank[targetRole].find((q) => !askedQuestions.has(q.trim()));
+
+  // If all questions for target role were asked, search other roles for unasked questions
+  if (!selectedQuestion) {
+    const roleOrder: InterviewerRole[] = ["product", "behavioral", "hiring_manager", "customer", "technical"];
+    for (const r of roleOrder) {
+      const available = questionBank[r].find((q) => !askedQuestions.has(q.trim()));
+      if (available) {
+        targetRole = r;
+        selectedQuestion = available;
+        break;
+      }
+    }
+  }
+
+  // Fallback if somehow all questions were exhausted
+  if (!selectedQuestion) {
     return {
-      summary: "Candidate proposed an initial architectural concept. Drilling into edge cases and concurrency.",
-      claims: ["Proposed distributed implementation"],
-      evidence: [answer.slice(0, 140)],
-      missing_evidence: ["Cache stampede protection", "Failure handling under network partitions"],
-      confidence: 0.85,
-      vagueness: 0.22,
+      summary: "Panel interview complete.",
+      claims: ["Completed full panel curriculum"],
+      evidence: [answer.slice(0, 100)],
+      missing_evidence: [],
+      confidence: 0.95,
+      vagueness: 0.1,
       contradictions: [],
-      competencies: { technical: 84, problem_solving: 82 },
-      recommended_interviewer: "technical",
-      recommended_action: "follow_up",
+      competencies: { technical: 90, product: 85, behavioral: 88, leadership: 85 },
+      recommended_interviewer: "hiring_manager",
+      recommended_action: "conclude",
       difficulty_delta: 0,
-      nextQuestion:
-        "That's a sound architectural starting point. How would your cache invalidation strategy behave if the primary database experienced a sudden burst of write contention and replica lag?",
-      reasoningCategory: "Probing resilience under replica lag and partition states",
-    };
-  } else {
-    return {
-      summary: "Continuing focused inquiry on recent point.",
-      claims: ["Candidate highlighted operational outcome"],
-      evidence: [answer.slice(0, 140)],
-      missing_evidence: ["Follow-through on key metric"],
-      confidence: 0.82,
-      vagueness: 0.25,
-      contradictions: [],
-      competencies: { communication: 80 },
-      recommended_interviewer: currentInterviewer,
-      recommended_action: "follow_up",
-      difficulty_delta: 0,
-      nextQuestion: "Could you expand on what trade-off you had to accept when choosing that specific implementation?",
-      reasoningCategory: "Deep dive into trade-off prioritization",
+      nextQuestion: `Thank you, ${candidateProfile.name}. We've completed our evaluation questions. You may now click below to generate your final assessment report.`,
+      reasoningCategory: "Panel evaluation complete",
     };
   }
+
+  const isSwitching = targetRole !== currentInterviewer;
+  const personaName = INTERVIEWER_PERSONAS[targetRole].name;
+  const personaTitle = INTERVIEWER_PERSONAS[targetRole].title;
+
+  return {
+    summary: `Evaluating ${targetRole} dimensions with ${personaName}.`,
+    claims: [answer.slice(0, 100)],
+    evidence: [answer.slice(0, 140)],
+    missing_evidence: [],
+    confidence: 0.9,
+    vagueness,
+    contradictions: [],
+    competencies: {
+      technical: targetRole === "technical" ? 86 : 80,
+      product: targetRole === "product" ? 85 : 75,
+      behavioral: targetRole === "behavioral" ? 88 : 78,
+      leadership: targetRole === "hiring_manager" ? 87 : 75,
+    },
+    recommended_interviewer: targetRole,
+    recommended_action: isSwitching ? "switch_interviewer" : "follow_up",
+    difficulty_delta: 0,
+    nextQuestion: selectedQuestion,
+    transitionStatement: isSwitching ? `${personaName} (${personaTitle}) is taking over the next question.` : undefined,
+    reasoningCategory: `${personaName} probing ${targetRole} competency`,
+  };
 }

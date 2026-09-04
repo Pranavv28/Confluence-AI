@@ -234,6 +234,167 @@ app.post("/api/agora/stop-agent", async (req, res) => {
 });
 
 /**
+ * Real Resume Processing Endpoint
+ */
+app.post("/api/resume/process", async (req, res) => {
+  try {
+    const { text, fileName } = req.body;
+    if (!text || typeof text !== "string" || text.trim().length < 10) {
+      return res.status(400).json({ error: "Please provide valid resume text or document content." });
+    }
+
+    const fallbackCandidateName = fileName
+      ? fileName.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ")
+      : "";
+    const parsedProfile = await parseResumeText(text, fallbackCandidateName);
+    res.json({ success: true, profile: parsedProfile });
+  } catch (err: any) {
+    console.error("Resume processing error:", err);
+    res.status(500).json({ error: err.message || "Failed to process resume." });
+  }
+});
+
+/**
+ * PDF Resume Upload Endpoint — passes raw PDF bytes directly to Gemini
+ * Gemini natively understands PDF documents — no text extraction library needed.
+ * Client sends Content-Type: application/pdf, body: raw PDF ArrayBuffer
+ * Optional header x-file-name: filename for fallback name extraction
+ */
+app.post(
+  "/api/resume/upload",
+  express.raw({ type: "application/pdf", limit: "10mb" }),
+  async (req, res) => {
+    try {
+      if (!req.body || !Buffer.isBuffer(req.body) || req.body.length < 100) {
+        return res.status(400).json({ error: "No valid PDF data received. Please upload a real PDF file." });
+      }
+
+      const fileName = (req.headers["x-file-name"] as string) || "resume.pdf";
+
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(503).json({
+          error: "GEMINI_API_KEY is not configured. Please set it in your .env file to enable PDF parsing.",
+        });
+      }
+
+      const { GoogleGenAI, Type } = await import("@google/genai");
+      const ai = new GoogleGenAI({
+        apiKey: process.env.GEMINI_API_KEY,
+        httpOptions: { headers: { "User-Agent": "aistudio-build" } },
+      });
+
+      const pdfBase64 = req.body.toString("base64");
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                inlineData: {
+                  mimeType: "application/pdf",
+                  data: pdfBase64,
+                },
+              },
+              {
+                text: "Extract the complete candidate profile from this resume PDF into structured JSON. Include all experience, skills, education, projects, and achievements. Only extract what is actually in the document — do not hallucinate details.",
+              },
+            ],
+          },
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING },
+              email: { type: Type.STRING },
+              targetRole: { type: Type.STRING },
+              yearsOfExperience: { type: Type.NUMBER },
+              skills: { type: Type.ARRAY, items: { type: Type.STRING } },
+              technologies: { type: Type.ARRAY, items: { type: Type.STRING } },
+              domains: { type: Type.ARRAY, items: { type: Type.STRING } },
+              education: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    degree: { type: Type.STRING },
+                    institution: { type: Type.STRING },
+                    year: { type: Type.NUMBER },
+                  },
+                  required: ["degree", "institution"],
+                },
+              },
+              experience: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    role: { type: Type.STRING },
+                    company: { type: Type.STRING },
+                    period: { type: Type.STRING },
+                    highlights: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  },
+                  required: ["role", "company"],
+                },
+              },
+              projects: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    name: { type: Type.STRING },
+                    description: { type: Type.STRING },
+                    impact: { type: Type.STRING },
+                    techStack: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  },
+                  required: ["name"],
+                },
+              },
+              achievements: { type: Type.ARRAY, items: { type: Type.STRING } },
+              certifications: { type: Type.ARRAY, items: { type: Type.STRING } },
+            },
+            required: ["name", "targetRole", "skills"],
+          },
+        },
+      });
+
+      if (!response.text) {
+        throw new Error("Gemini returned an empty response for the uploaded PDF.");
+      }
+
+      const parsed = JSON.parse(response.text);
+      if (!parsed.name || !parsed.targetRole) {
+        throw new Error("Could not extract a valid candidate profile from this PDF. Please ensure it is a readable resume.");
+      }
+
+      const profile = {
+        id: `cand_${Date.now()}`,
+        name: parsed.name,
+        email: parsed.email || `${parsed.name.toLowerCase().replace(/[^a-z0-9]/g, ".")}@example.com`,
+        targetRole: parsed.targetRole,
+        yearsOfExperience: Number(parsed.yearsOfExperience) || 4,
+        skills: Array.isArray(parsed.skills) && parsed.skills.length > 0 ? parsed.skills : ["Software Engineering"],
+        technologies: Array.isArray(parsed.technologies) ? parsed.technologies : [],
+        domains: Array.isArray(parsed.domains) ? parsed.domains : ["Software Engineering"],
+        education: Array.isArray(parsed.education) ? parsed.education : [],
+        experience: Array.isArray(parsed.experience) ? parsed.experience : [],
+        projects: Array.isArray(parsed.projects) ? parsed.projects : [],
+        achievements: Array.isArray(parsed.achievements) ? parsed.achievements : [],
+        certifications: Array.isArray(parsed.certifications) ? parsed.certifications : [],
+      };
+
+      res.json({ success: true, profile });
+    } catch (err: any) {
+      console.error("PDF upload/parsing error:", err);
+      res.status(500).json({ error: err.message || "Failed to parse the uploaded PDF." });
+    }
+  }
+);
+
+/**
  * Create Interview Session
  */
 app.post("/api/interview/create", (req, res) => {
@@ -243,6 +404,11 @@ app.post("/api/interview/create", (req, res) => {
     const candidate = candidateProfile || DEMO_CANDIDATE;
 
     const sessionId = `sess_${Date.now()}`;
+    const initialQuestion =
+      candidate.projects && candidate.projects.length > 0 && candidate.projects[0].name
+        ? `Welcome ${candidate.name}. I'm Dr. Marcus Vance, leading technical evaluation today alongside our product and engineering panel. I noticed in your background that you worked on ${candidate.projects[0].name}. To get started, could you walk me through the core architecture and the key scalability constraints you had to manage?`
+        : `Welcome ${candidate.name}. I'm Dr. Marcus Vance, leading technical evaluation today alongside our product and engineering panel. To get started, could you walk me through a distributed architecture or system you've designed that had complex scalability constraints?`;
+
     const newSession: InterviewSession = {
       id: sessionId,
       candidateProfile: candidate,
@@ -257,7 +423,7 @@ app.post("/api/interview/create", (req, res) => {
           speaker: "interviewer",
           role: "technical",
           interviewerName: "Dr. Marcus Vance",
-          text: `Welcome ${candidate.name}. I'm Dr. Marcus Vance, leading technical evaluation today alongside our product and engineering panel. To get started, could you walk me through a distributed architecture or system you've designed that had complex scalability constraints?`,
+          text: initialQuestion,
           timestamp: new Date().toTimeString().split(" ")[0],
           secondsOffset: 5,
         },
@@ -456,18 +622,8 @@ app.get("/api/interview/:id/assessment", (req, res) => {
   res.json({ assessment: report });
 });
 
-/**
- * Resume Processing
- */
-app.post("/api/resume/process", async (req, res) => {
-  try {
-    const { rawText, fileName, candidateName } = req.body;
-    const profile = await parseResumeText(rawText || "Senior Distributed Systems Engineer with Go and Redis experience", candidateName || "Alex Chen");
-    res.json({ success: true, profile });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// Note: /api/resume/process is defined above (line ~239) with real Gemini-backed parsing.
+// /api/resume/upload is defined above for direct PDF binary uploads.
 
 /**
  * Job Management

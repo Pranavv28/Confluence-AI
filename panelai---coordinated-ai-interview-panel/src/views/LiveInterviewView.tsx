@@ -320,26 +320,26 @@ export const LiveInterviewView: React.FC<LiveInterviewViewProps> = ({
   return (
     <div className="relative min-h-[calc(100vh-4rem)] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
       {/* Top Session Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-zinc-800 bg-zinc-950/80 px-5 py-3 backdrop-blur-md">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-stone-200 bg-white px-5 py-3 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <span className="relative flex h-3 w-3">
+            <span className="relative flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600" />
             </span>
-            <span className="text-xs font-bold text-white uppercase tracking-wider">
+            <span className="text-xs font-bold text-stone-900 uppercase tracking-wider">
               Live Coordinated Panel Session
             </span>
           </div>
 
-          <div className="hidden sm:flex items-center gap-1.5 text-xs text-zinc-400 pl-4 border-l border-zinc-800">
-            <Clock className="h-3.5 w-3.5 text-blue-400" />
-            <span className="font-mono text-zinc-200 font-bold">{formatTimer(elapsedSeconds)}</span>
+          <div className="hidden sm:flex items-center gap-1.5 text-xs text-stone-500 pl-4 border-l border-stone-200">
+            <Clock className="h-3.5 w-3.5 text-[#1E3A5F]" />
+            <span className="font-mono text-stone-800 font-bold">{formatTimer(elapsedSeconds)}</span>
           </div>
 
-          <div className="hidden md:flex items-center gap-2 pl-4 border-l border-zinc-800 text-xs">
-            <span className="text-zinc-400">Dynamic Difficulty:</span>
-            <span className="rounded bg-blue-500/10 px-2 py-0.5 text-blue-400 font-bold font-mono border border-blue-500/20">
+          <div className="hidden md:flex items-center gap-2 pl-4 border-l border-stone-200 text-xs">
+            <span className="text-stone-500">Dynamic Difficulty:</span>
+            <span className="rounded bg-slate-100 px-2 py-0.5 text-slate-800 font-bold font-mono border border-slate-200">
               Level {currentDifficulty} / 5
             </span>
           </div>
@@ -348,15 +348,15 @@ export const LiveInterviewView: React.FC<LiveInterviewViewProps> = ({
         <div className="flex items-center gap-3">
           <button
             onClick={onToggleDebug}
-            className="flex items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-mono text-zinc-300 hover:bg-zinc-800 cursor-pointer"
+            className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-mono text-stone-700 hover:bg-stone-100 cursor-pointer"
           >
-            <Radio className="h-3.5 w-3.5 text-blue-400" />
+            <Radio className="h-3.5 w-3.5 text-[#1E3A5F]" />
             <span className="hidden sm:inline">Telemetry</span>
           </button>
 
           <button
             onClick={handleEndInterview}
-            className="flex items-center gap-2 rounded-xl bg-rose-600/90 hover:bg-rose-500 px-4 py-1.5 text-xs font-bold text-white shadow-lg shadow-rose-600/20 transition cursor-pointer"
+            className="flex items-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 px-4 py-1.5 text-xs font-bold text-white shadow-sm transition cursor-pointer"
           >
             <PhoneOff className="h-3.5 w-3.5" />
             <span>End Interview &amp; Generate Report</span>
@@ -382,22 +382,22 @@ export const LiveInterviewView: React.FC<LiveInterviewViewProps> = ({
         </div>
 
         {/* Center Column: Voice Orb & Audio Controls (5 cols) */}
-        <div className="lg:col-span-5 flex flex-col items-center justify-between rounded-3xl border border-zinc-800 bg-gradient-to-b from-zinc-900/60 to-zinc-950/80 p-6 backdrop-blur-md min-h-[480px] order-1 lg:order-2">
+        <div className="lg:col-span-5 flex flex-col items-center justify-between rounded-2xl border border-stone-200 bg-white p-6 shadow-sm min-h-[480px] order-1 lg:order-2">
           {/* Active Interviewer Header */}
           <div className="text-center">
-            <span className="text-[11px] font-semibold text-blue-400 uppercase tracking-wider">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
               Active Questioner
             </span>
-            <h2 className="text-xl font-bold text-white mt-0.5">
+            <h2 className="text-xl font-bold text-stone-900 mt-0.5">
               {INTERVIEWER_PERSONAS[activeRole].name}
             </h2>
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-stone-500">
               {INTERVIEWER_PERSONAS[activeRole].title} &bull; Focus: {INTERVIEWER_PERSONAS[activeRole].focusAreas[0]}
             </p>
           </div>
 
           {/* Central Animated Voice Orb */}
-          <div className="my-auto py-4">
+          <div className="my-auto py-4 w-full">
             <VoiceOrb
               state={state}
               activeRole={activeRole}
@@ -413,20 +413,20 @@ export const LiveInterviewView: React.FC<LiveInterviewViewProps> = ({
             <div className="flex items-center justify-center gap-3">
               <button
                 onClick={handleToggleMute}
-                className={`flex items-center gap-2 rounded-2xl px-5 py-2.5 text-xs font-semibold transition cursor-pointer ${
+                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition cursor-pointer ${
                   isMuted
                     ? "bg-rose-600 text-white"
-                    : "bg-zinc-800 text-zinc-200 hover:bg-zinc-700 border border-zinc-700"
+                    : "bg-stone-100 text-stone-800 hover:bg-stone-200 border border-stone-200"
                 }`}
               >
-                {isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4 text-emerald-400" />}
+                {isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4 text-emerald-600" />}
                 <span>{isMuted ? "Unmute Mic" : "Mute Mic"}</span>
               </button>
 
               {state === "SPEAKING" && (
                 <button
                   onClick={handleInterrupt}
-                  className="flex items-center gap-2 rounded-2xl border border-rose-500/40 bg-rose-500/10 px-4 py-2.5 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 transition cursor-pointer"
+                  className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition cursor-pointer"
                 >
                   <AlertTriangle className="h-4 w-4" />
                   <span>Interrupt Interviewer</span>
@@ -434,30 +434,50 @@ export const LiveInterviewView: React.FC<LiveInterviewViewProps> = ({
               )}
             </div>
 
+            {/* Panel Concluded Banner */}
+            {latestDecision?.recommended_action === "conclude" && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-center flex flex-col items-center gap-2">
+                <div className="flex items-center gap-2 text-emerald-800 font-semibold text-xs">
+                  <Sparkles className="h-4 w-4 text-emerald-600 animate-pulse" />
+                  <span>All Panel Modules Evaluated!</span>
+                </div>
+                <p className="text-[11px] text-stone-600">
+                  The interview panel has gathered comprehensive signals. You can now generate your executive hiring report.
+                </p>
+                <button
+                  onClick={handleEndInterview}
+                  className="mt-1 flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs font-bold text-white shadow-sm transition cursor-pointer"
+                >
+                  <PhoneOff className="h-3.5 w-3.5" />
+                  <span>Complete Interview &amp; View Report</span>
+                </button>
+              </div>
+            )}
+
             {/* Quick Demo Preset Answers for Hackathon Judges */}
-            <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-3">
-              <div className="flex items-center justify-between text-[11px] text-zinc-400 mb-2">
-                <span className="font-semibold text-zinc-300">Judge Demonstration Presets:</span>
-                <span className="text-[10px] text-blue-400">Click to autofill answer</span>
+            <div className="rounded-xl border border-stone-200 bg-stone-50/70 p-3">
+              <div className="flex items-center justify-between text-[11px] text-stone-600 mb-2">
+                <span className="font-semibold text-stone-800">Judge Demonstration Presets:</span>
+                <span className="text-[10px] text-slate-500">Click to autofill answer</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={() => handleSelectPresetAnswer("high_quality")}
-                  className="rounded-lg bg-zinc-800 hover:bg-zinc-700 p-2 text-[10px] font-semibold text-zinc-200 text-left transition border border-zinc-700/60 cursor-pointer"
+                  className="rounded-lg bg-white hover:bg-stone-50 p-2 text-[10px] font-semibold text-stone-800 text-left transition border border-stone-200 cursor-pointer shadow-2xs"
                   title="Simulates technical latency answer -> Triggers Product follow-up from Elena!"
                 >
                   1. Deep Tech Answer
                 </button>
                 <button
                   onClick={() => handleSelectPresetAnswer("vague")}
-                  className="rounded-lg bg-zinc-800 hover:bg-zinc-700 p-2 text-[10px] font-semibold text-amber-300 text-left transition border border-zinc-700/60 cursor-pointer"
+                  className="rounded-lg bg-white hover:bg-stone-50 p-2 text-[10px] font-semibold text-amber-800 text-left transition border border-stone-200 cursor-pointer shadow-2xs"
                   title="Simulates vague answer -> Triggers Marcus to probe for metrics!"
                 >
                   2. Vague Answer
                 </button>
                 <button
                   onClick={() => handleSelectPresetAnswer("contradiction")}
-                  className="rounded-lg bg-zinc-800 hover:bg-zinc-700 p-2 text-[10px] font-semibold text-rose-300 text-left transition border border-zinc-700/60 cursor-pointer"
+                  className="rounded-lg bg-white hover:bg-stone-50 p-2 text-[10px] font-semibold text-rose-800 text-left transition border border-stone-200 cursor-pointer shadow-2xs"
                   title="Simulates contradiction -> Triggers Devon to probe ownership!"
                 >
                   3. Contradiction
@@ -473,12 +493,12 @@ export const LiveInterviewView: React.FC<LiveInterviewViewProps> = ({
                 onChange={(e) => setManualText(e.target.value)}
                 placeholder="Or type candidate response here..."
                 disabled={state === "THINKING"}
-                className="flex-1 rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2 text-xs text-zinc-200 placeholder-zinc-400 focus:outline-none focus:border-blue-500"
+                className="flex-1 rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-xs text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#1E3A5F] focus:ring-1 focus:ring-[#1E3A5F]"
               />
               <button
                 type="submit"
                 disabled={!manualText.trim() || state === "THINKING"}
-                className="flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-40 transition cursor-pointer"
+                className="flex items-center justify-center rounded-xl bg-[#1E3A5F] px-4 py-2 text-xs font-semibold text-white hover:bg-[#162A45] disabled:opacity-40 transition cursor-pointer shadow-sm"
               >
                 {state === "THINKING" ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </button>

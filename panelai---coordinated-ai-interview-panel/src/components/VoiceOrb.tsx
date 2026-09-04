@@ -1,7 +1,7 @@
 import React from "react";
 import { InterviewState, InterviewerRole } from "../types/interview";
 import { INTERVIEWER_PERSONAS } from "../lib/personas";
-import { Mic, Volume2, Sparkles, AlertCircle, RefreshCw } from "lucide-react";
+import { Mic, Volume2, AlertCircle, RefreshCw } from "lucide-react";
 
 interface VoiceOrbProps {
   state: InterviewState;
@@ -22,122 +22,100 @@ export const VoiceOrb: React.FC<VoiceOrbProps> = ({
 }) => {
   const persona = INTERVIEWER_PERSONAS[activeRole];
 
-  // Derive dynamic scale and glow based on volume and state
   const isAgentSpeaking = state === "SPEAKING";
   const isCandidateSpeaking = state === "LISTENING" && candidateVolume > 15;
-  const isInterrupted = state === "INTERRUPTED";
-  const isSwitching = state === "SWITCHING_INTERVIEWER";
   const isThinking = state === "THINKING";
+  const isInterrupted = state === "INTERRUPTED";
 
-  const orbScale = isAgentSpeaking
-    ? 1 + Math.min(0.25, (agentVolume / 100) * 0.3)
-    : isCandidateSpeaking
-    ? 1 + Math.min(0.2, (candidateVolume / 100) * 0.25)
-    : 1;
+  // Dynamic bar heights for subtle waveform (7 bars)
+  const vol = isAgentSpeaking ? agentVolume : isCandidateSpeaking ? candidateVolume : 0;
+  const normalizedVol = Math.min(100, Math.max(8, vol));
 
-  const stateConfig: Record<InterviewState, { label: string; color: string; bg: string; icon: any }> = {
-    PREPARING: { label: "Preparing Panel", color: "text-white/60", bg: "bg-[#141414] border-white/10 font-mono text-[11px]", icon: Sparkles },
-    CONNECTING: { label: "Connecting Agora RTC", color: "text-[#FF4D00]", bg: "bg-[#FF4D00]/10 border-[#FF4D00]/30 font-mono text-[11px]", icon: RefreshCw },
-    LISTENING: { label: "Listening to Candidate", color: "text-white", bg: "bg-white/10 border-white/20 font-mono text-[11px]", icon: Mic },
-    THINKING: { label: "Moderator Analyzing Turn", color: "text-[#FF4D00]", bg: "bg-[#FF4D00]/15 border-[#FF4D00]/40 font-mono text-[11px]", icon: RefreshCw },
-    SPEAKING: { label: `${persona.name} Speaking`, color: "text-white", bg: "bg-[#FF4D00] border-[#FF4D00] text-black font-mono text-[11px]", icon: Volume2 },
-    INTERRUPTED: { label: "Candidate Interrupted", color: "text-rose-400", bg: "bg-rose-500/10 border-rose-500/30 font-mono text-[11px]", icon: AlertCircle },
-    SWITCHING_INTERVIEWER: { label: "Floor Hand-Off", color: "text-[#FF4D00]", bg: "bg-[#141414] border-[#FF4D00]/40 font-mono text-[11px]", icon: Sparkles },
-    FOLLOW_UP: { label: "Targeted Follow-Up", color: "text-[#FF4D00]", bg: "bg-[#141414] border-[#FF4D00]/30 font-mono text-[11px]", icon: Volume2 },
-    ROLEPLAY: { label: "Scenario Simulation", color: "text-white/80", bg: "bg-[#141414] border-white/10 font-mono text-[11px]", icon: Volume2 },
-    PAUSED: { label: "Session Paused", color: "text-white/50", bg: "bg-[#141414] border-white/10 font-mono text-[11px]", icon: Sparkles },
-    COMPLETED: { label: "Assessment Generated", color: "text-[#FF4D00]", bg: "bg-[#FF4D00]/15 border-[#FF4D00]/30 font-mono text-[11px]", icon: Sparkles },
-    ERROR: { label: "Signal Interruption", color: "text-rose-400", bg: "bg-rose-500/10 border-rose-500/30 font-mono text-[11px]", icon: AlertCircle },
+  const stateConfig: Record<InterviewState, { label: string; dotColor: string; badgeBg: string; textColor: string }> = {
+    PREPARING: { label: "Preparing Panel", dotColor: "bg-stone-400", badgeBg: "bg-stone-100 border-stone-300", textColor: "text-stone-600" },
+    CONNECTING: { label: "Connecting Audio", dotColor: "bg-amber-500", badgeBg: "bg-amber-50 border-amber-200", textColor: "text-amber-700" },
+    LISTENING: { label: "Listening to Candidate", dotColor: "bg-emerald-500", badgeBg: "bg-emerald-50 border-emerald-200", textColor: "text-emerald-700" },
+    THINKING: { label: "Moderator Coordinating Turn", dotColor: "bg-slate-600", badgeBg: "bg-slate-100 border-slate-300", textColor: "text-slate-700" },
+    SPEAKING: { label: `${persona.name} Speaking`, dotColor: "bg-blue-600", badgeBg: "bg-blue-50 border-blue-200", textColor: "text-blue-800" },
+    INTERRUPTED: { label: "Candidate Interrupted", dotColor: "bg-rose-500", badgeBg: "bg-rose-50 border-rose-200", textColor: "text-rose-700" },
+    SWITCHING_INTERVIEWER: { label: "Floor Hand-Off", dotColor: "bg-blue-600", badgeBg: "bg-blue-50 border-blue-200", textColor: "text-blue-700" },
+    FOLLOW_UP: { label: "Targeted Probe", dotColor: "bg-blue-600", badgeBg: "bg-blue-50 border-blue-200", textColor: "text-blue-700" },
+    ROLEPLAY: { label: "Scenario Simulation", dotColor: "bg-purple-600", badgeBg: "bg-purple-50 border-purple-200", textColor: "text-purple-700" },
+    PAUSED: { label: "Session Paused", dotColor: "bg-stone-400", badgeBg: "bg-stone-100 border-stone-200", textColor: "text-stone-600" },
+    COMPLETED: { label: "Interview Complete", dotColor: "bg-emerald-600", badgeBg: "bg-emerald-50 border-emerald-200", textColor: "text-emerald-800" },
+    ERROR: { label: "Signal Notice", dotColor: "bg-rose-500", badgeBg: "bg-rose-50 border-rose-200", textColor: "text-rose-700" },
   };
 
   const currentStatus = stateConfig[state] || stateConfig.LISTENING;
-  const StatusIcon = currentStatus.icon;
 
   return (
-    <div className="relative flex flex-col items-center justify-center py-6">
-      {/* Outer Pulse Rings - Constructivist Geometry */}
-      <div className="relative flex items-center justify-center">
-        {/* Ring 3 */}
-        <div
-          className="absolute h-60 w-60 rounded-full border border-white/10 transition-all duration-700"
-          style={{
-            transform: `scale(${orbScale * 1.15})`,
-            borderColor: isAgentSpeaking ? "rgba(255, 77, 0, 0.4)" : "rgba(255, 255, 255, 0.08)",
-            opacity: isAgentSpeaking ? 0.8 : isCandidateSpeaking ? 0.4 : 0.15,
-          }}
-        />
+    <div className="flex flex-col items-center justify-center py-4 w-full">
+      {/* Calm Waveform Card */}
+      <div className="relative flex flex-col items-center justify-center h-36 w-full max-w-sm rounded-2xl bg-white border border-stone-200 shadow-sm p-6 transition-all">
+        {/* Subtle Waveform Bars */}
+        <div className="flex items-center justify-center gap-1.5 h-14 w-full">
+          {[0.4, 0.7, 1.0, 1.2, 1.0, 0.7, 0.4].map((multiplier, idx) => {
+            const barHeight = isAgentSpeaking || isCandidateSpeaking
+              ? Math.max(10, Math.min(52, Math.round(normalizedVol * 0.45 * multiplier)))
+              : 8;
 
-        {/* Ring 2 */}
-        <div
-          className="absolute h-48 w-48 rounded-full border border-white/15 transition-all duration-500"
-          style={{
-            transform: `scale(${orbScale * 1.08})`,
-            borderColor: isAgentSpeaking ? "rgba(255, 77, 0, 0.6)" : "rgba(255, 255, 255, 0.15)",
-            opacity: isAgentSpeaking ? 0.9 : 0.25,
-          }}
-        />
+            return (
+              <div
+                key={idx}
+                className={`w-1.5 rounded-full transition-all duration-150 ${
+                  isAgentSpeaking
+                    ? "bg-slate-800"
+                    : isCandidateSpeaking
+                    ? "bg-emerald-600"
+                    : isThinking
+                    ? "bg-stone-300 animate-pulse"
+                    : "bg-stone-200"
+                }`}
+                style={{ height: `${barHeight}px` }}
+              />
+            );
+          })}
+        </div>
 
-        {/* Core Sphere / Glowing Orb */}
-        <div
-          className="relative flex h-36 w-36 items-center justify-center rounded-full shadow-2xl transition-transform duration-200"
-          style={{
-            transform: `scale(${orbScale})`,
-            background: isAgentSpeaking
-              ? `radial-gradient(circle at 35% 35%, #FFA07A, #FF4D00, #8A2400, #0D0D0D)`
-              : isCandidateSpeaking
-              ? `radial-gradient(circle at 35% 35%, #FFFFFF, #B0B0B0, #333333, #0D0D0D)`
-              : isThinking
-              ? `radial-gradient(circle at 35% 35%, #FF7A33, #D94000, #4A1200, #0D0D0D)`
-              : isInterrupted
-              ? `radial-gradient(circle at 35% 35%, #F87171, #DC2626, #450A0A, #0D0D0D)`
-              : `radial-gradient(circle at 35% 35%, #E5E5E5, #555555, #1F1F1F, #0D0D0D)`,
-            boxShadow: isAgentSpeaking
-              ? `0 0 50px rgba(255, 77, 0, 0.5), inset 0 0 25px rgba(255,255,255,0.5)`
-              : isCandidateSpeaking
-              ? `0 0 45px rgba(255, 255, 255, 0.35), inset 0 0 20px rgba(255,255,255,0.4)`
-              : `0 0 30px rgba(255, 77, 0, 0.2)`,
-          }}
-        >
-          {/* Internal reflective sheen */}
-          <div className="absolute top-2 left-6 h-8 w-16 rounded-full bg-white/30 blur-sm transform -rotate-25" />
-
-          {/* Center visual icon / waveform */}
-          <div className="relative z-10 flex flex-col items-center justify-center text-white">
-            {isAgentSpeaking ? (
-              <div className="flex items-center gap-1">
-                <span className="h-4 w-1 bg-white rounded-full animate-bounce [animation-delay:-0.3s]" />
-                <span className="h-7 w-1 bg-white rounded-full animate-bounce [animation-delay:-0.15s]" />
-                <span className="h-10 w-1 bg-white rounded-full animate-bounce" />
-                <span className="h-7 w-1 bg-white rounded-full animate-bounce [animation-delay:-0.15s]" />
-                <span className="h-4 w-1 bg-white rounded-full animate-bounce [animation-delay:-0.3s]" />
-              </div>
-            ) : isCandidateSpeaking ? (
-              <div className="flex items-center gap-1 text-white">
-                <Mic className="h-8 w-8 animate-pulse text-white" />
-              </div>
-            ) : isThinking ? (
-              <RefreshCw className="h-8 w-8 animate-spin text-white" />
-            ) : (
-              <Mic className={`h-8 w-8 ${isMuted ? "text-red-400" : "text-white/60"}`} />
-            )}
-          </div>
+        {/* Audio Role Subtitle */}
+        <div className="mt-2 text-xs text-stone-500 font-medium flex items-center gap-1.5">
+          {isAgentSpeaking ? (
+            <span className="flex items-center gap-1 text-slate-900 font-semibold">
+              <Volume2 className="h-3.5 w-3.5 text-blue-600" />
+              {persona.name} is speaking
+            </span>
+          ) : isCandidateSpeaking ? (
+            <span className="flex items-center gap-1 text-emerald-700 font-semibold">
+              <Mic className="h-3.5 w-3.5 text-emerald-600" />
+              Candidate speaking ({candidateVolume}%)
+            </span>
+          ) : isThinking ? (
+            <span className="flex items-center gap-1 text-stone-600">
+              <RefreshCw className="h-3.5 w-3.5 animate-spin text-stone-400" />
+              Analyzing candidate response...
+            </span>
+          ) : (
+            <span className="text-stone-400 flex items-center gap-1">
+              <Mic className={`h-3.5 w-3.5 ${isMuted ? "text-rose-500" : "text-stone-400"}`} />
+              {isMuted ? "Microphone Muted" : "Ready for response"}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* State Badge & Quick Interruption CTA */}
-      <div className="mt-6 flex flex-col items-center gap-2">
+      {/* State Status Pill */}
+      <div className="mt-4 flex flex-col items-center gap-1.5">
         <div
-          className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-mono uppercase tracking-wider border shadow-sm transition-all ${currentStatus.bg}`}
+          className={`flex items-center gap-2 rounded-full px-3.5 py-1 text-xs font-medium border shadow-xs ${currentStatus.badgeBg} ${currentStatus.textColor}`}
         >
-          <StatusIcon className={`h-3.5 w-3.5 ${currentStatus.color} ${isThinking ? "animate-spin" : ""}`} />
-          <span className={currentStatus.color}>{currentStatus.label}</span>
+          <span className={`h-2 w-2 rounded-full ${currentStatus.dotColor} ${isAgentSpeaking || isCandidateSpeaking ? "animate-pulse" : ""}`} />
+          <span>{currentStatus.label}</span>
         </div>
 
-        {/* Live Interruption button when agent is speaking */}
         {isAgentSpeaking && onInterrupt && (
           <button
             onClick={onInterrupt}
-            className="text-[10px] font-mono uppercase tracking-widest text-white/50 hover:text-[#FF4D00] underline underline-offset-4 transition cursor-pointer"
+            className="text-[11px] text-stone-500 hover:text-stone-800 transition cursor-pointer underline underline-offset-2"
           >
             Click or speak to interrupt
           </button>
